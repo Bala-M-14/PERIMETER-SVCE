@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PerimeterIQ — Command Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #0d0d0d;
+  --surface:   #141414;
+  --surface2:  #1a1a1a;
+  --border:    #2a2a2a;
+  --border2:   #333;
+  --text:      #e8e8e8;
+  --text-dim:  #888;
+  --text-faint:#3a3a3a;
+  --accent:    #d4a017;
+  --accent-dim:#6b4d0b;
+  --red:       #c0392b;
+  --red-dim:   #4a1a16;
+  --green:     #27ae60;
+  --green-dim: #143d27;
+  --blue:      #2980b9;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+  --r: 2px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  line-height: 1.5;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: repeating-linear-gradient(
+    0deg, transparent, transparent 23px,
+    rgba(255,255,255,0.012) 23px,
+    rgba(255,255,255,0.012) 24px);
+  pointer-events: none; z-index: 0;
+}
+#app { position: relative; z-index: 1; max-width: 1440px; margin: 0 auto; padding: 16px 20px; }
+
+/* UTILS */
+.mono  { font-family: var(--mono); }
+.label { font-family: var(--mono); font-size: 10px; font-weight: 500;
+         text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-dim); }
+
+/* PANEL */
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); }
+.panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+}
+.panel-title { font-family: var(--mono); font-size: 10px; font-weight: 600;
+               text-transform: uppercase; letter-spacing: 0.14em; color: var(--accent); }
+.panel-body { padding: 14px; }
+
+/* TOPBAR */
+.topbar {
+  display: grid; grid-template-columns: auto 1fr auto auto;
+  align-items: center; gap: 24px;
+  padding: 12px 16px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--r); margin-bottom: 12px;
+}
+.logo-name { font-family: var(--mono); font-size: 15px; font-weight: 600;
+             letter-spacing: 0.1em; color: var(--text); text-transform: uppercase; }
+.logo-name span { color: var(--accent); }
+.logo-sub { font-family: var(--mono); font-size: 9px; color: var(--text-faint);
+            letter-spacing: 0.08em; margin-top: 2px; }
+.status-row { display: flex; align-items: center; gap: 8px; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%;
+              background: var(--green); flex-shrink: 0; }
+.status-dot.alarm  { background: var(--red);    animation: blink 0.5s step-end infinite; }
+.status-dot.authed { background: var(--accent); }
+.status-dot.warn   { background: var(--accent); animation: blink 1s step-end infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+.status-text { font-family: var(--mono); font-size: 11px; font-weight: 500;
+               letter-spacing: 0.06em; }
+.threat-badge { font-family: var(--mono); font-size: 10px; font-weight: 600;
+                padding: 3px 10px; border: 1px solid; border-radius: var(--r);
+                letter-spacing: 0.1em; text-transform: uppercase; }
+.t-none     { color: var(--green);  border-color: var(--green-dim); }
+.t-elevated { color: var(--accent); border-color: var(--accent-dim); }
+.t-critical { color: var(--red);    border-color: var(--red-dim); animation: blink 0.4s step-end infinite; }
+.t-lockdown { color: var(--red);    border-color: var(--red); background: var(--red-dim); }
+.sys-clock  { font-family: var(--mono); font-size: 18px; font-weight: 300;
+              color: var(--text); letter-spacing: 0.05em; min-width: 80px; text-align: right; }
+
+/* STATS */
+.stats-row { display: grid; grid-template-columns: repeat(6,1fr); gap: 8px; margin-bottom: 12px; }
+.stat-cell { background: var(--surface); border: 1px solid var(--border);
+             border-radius: var(--r); padding: 10px 12px; }
+.stat-val { font-family: var(--mono); font-size: 22px; font-weight: 300;
+            color: var(--text); line-height: 1; margin-top: 4px; }
+.stat-val.red   { color: var(--red); }
+.stat-val.amber { color: var(--accent); }
+.stat-val.green { color: var(--green); }
+
+/* MAIN GRID */
+.main-grid { display: grid; grid-template-columns: 1fr 300px; gap: 12px; }
+.left-col  { display: flex; flex-direction: column; gap: 12px; }
+.right-col { display: flex; flex-direction: column; gap: 12px; }
+
+/* BEAM TRACK */
+.zone-labels { display: flex; justify-content: space-between;
+               font-family: var(--mono); font-size: 9px; color: var(--text-faint);
+               margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em; }
+.beam-track { height: 88px; background: #080808; border: 1px solid var(--border2);
+              border-radius: var(--r); position: relative; overflow: hidden; }
+.beam-track::after { content: ''; position: absolute; bottom: 18px;
+                     left: 0; right: 0; height: 1px; background: var(--border2); }
+.laser-beam { position: absolute; top: 0; bottom: 0; width: 1px;
+              transition: background 80ms, box-shadow 80ms; }
+.laser-beam.clear   { background: rgba(212,160,23,0.2); }
+.laser-beam.tripped { background: var(--red); box-shadow: 0 0 10px rgba(192,57,43,0.5); width: 2px; }
+.beam-lbl { position: absolute; top: 6px; left: 5px; font-family: var(--mono);
+            font-size: 8px; color: var(--text-faint); text-transform: uppercase;
+            letter-spacing: 0.1em; white-space: nowrap; }
+.intruder { position: absolute; bottom: 19px; width: 8px; height: 8px;
+            border-radius: 50%; background: var(--text-dim); border: 1px solid var(--text);
+            transition: left 80ms linear; z-index: 5; }
+.intruder.alert { background: var(--red); border-color: var(--red); }
+.sensor-bars { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.bar-label  { display: flex; justify-content: space-between; font-family: var(--mono);
+              font-size: 9px; color: var(--text-dim); margin-bottom: 4px; }
+.bar-track  { height: 4px; background: #000; border: 1px solid var(--border2);
+              border-radius: 1px; overflow: hidden; }
+.bar-fill   { height: 100%; background: var(--accent-dim); transition: width 200ms ease; }
+.bar-fill.tripped { background: var(--red); }
+
+/* TELEMETRY */
+.telem-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+.telem-cell { background: #080808; border: 1px solid var(--border2);
+              border-radius: var(--r); padding: 10px 12px; }
+.telem-val  { font-family: var(--mono); font-size: 20px; font-weight: 300;
+              color: var(--text); line-height: 1; margin: 4px 0 2px; }
+.telem-val.alert { color: var(--red); }
+.telem-val.amber { color: var(--accent); }
+.telem-unit { font-family: var(--mono); font-size: 8px; color: var(--text-faint);
+              text-transform: uppercase; letter-spacing: 0.1em; }
+.waveform   { width: 100%; height: 50px; display: block; background: #060606;
+              border: 1px solid var(--border2); border-radius: var(--r); margin-top: 8px; }
+
+/* PACKET STREAM */
+.pkt-stream { font-family: var(--mono); font-size: 10px; line-height: 1.8;
+              background: #060606; border: 1px solid var(--border2);
+              border-radius: var(--r); height: 120px; overflow: hidden; padding: 8px 10px; }
+.pkt-row { display: flex; gap: 10px; }
+.pkt-seq  { color: var(--text-faint); min-width: 60px; }
+.pkt-bytes{ color: #2a6e3a; flex: 1; }
+.pkt-bytes .hl { color: var(--text); background: #1a2e1a; padding: 0 2px; }
+.pkt-evt  { color: var(--text-dim); min-width: 120px; }
+.pkt-row.alert  .pkt-bytes { color: #7a2020; }
+.pkt-row.alert  .pkt-evt   { color: var(--red); }
+.pkt-row.authed .pkt-bytes { color: var(--accent-dim); }
+.pkt-row.authed .pkt-evt   { color: var(--accent); }
+
+/* LOG */
+.log-scroll { max-height: 200px; overflow-y: auto;
+              scrollbar-width: thin; scrollbar-color: var(--border2) transparent; }
+.log-scroll::-webkit-scrollbar { width: 3px; }
+.log-scroll::-webkit-scrollbar-thumb { background: var(--border2); }
+.log-row { display: grid; grid-template-columns: 70px 52px 1fr; gap: 8px;
+           padding: 4px 0; border-bottom: 1px solid rgba(42,42,42,0.5);
+           font-family: var(--mono); font-size: 10px; line-height: 1.4;
+           animation: fadeIn 0.15s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateX(-3px)} to{opacity:1} }
+.log-ts  { color: var(--text-faint); }
+.log-src { font-weight: 500; }
+.log-msg { color: var(--text-dim); }
+.log-row.info     .log-src { color: var(--blue); }
+.log-row.warn     .log-src { color: var(--accent); }
+.log-row.critical .log-src { color: var(--red); }
+.log-row.critical .log-msg { color: #c07070; }
+.log-row.success  .log-src { color: var(--green); }
+.log-row.auth     .log-src { color: var(--accent); }
+
+/* BUTTON */
+.btn { display: block; width: 100%; padding: 9px 12px; background: transparent;
+       border: 1px solid var(--border2); color: var(--text); border-radius: var(--r);
+       cursor: pointer; font-family: var(--mono); font-size: 10px; font-weight: 500;
+       letter-spacing: 0.08em; text-transform: uppercase; text-align: left;
+       transition: background 100ms, border-color 100ms; margin-bottom: 6px; }
+.btn:hover  { background: rgba(255,255,255,0.04); border-color: var(--text-dim); }
+.btn:active { background: rgba(255,255,255,0.07); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn.primary { border-color: var(--accent-dim); color: var(--accent); }
+.btn.primary:hover { background: rgba(212,160,23,0.07); border-color: var(--accent); }
+.btn.danger  { border-color: var(--red-dim); color: var(--red); }
+.btn.danger:hover  { background: rgba(192,57,43,0.07); border-color: var(--red); }
+.btn.armed   { border-color: var(--red); color: var(--red); background: var(--red-dim); }
+
+/* SESSION BAR */
+.session-wrap { margin-top: 8px; display: none; }
+.session-info { font-family: var(--mono); font-size: 9px; color: var(--text-dim);
+                display: flex; justify-content: space-between; margin-bottom: 4px; }
+.session-track { height: 2px; background: var(--border2); border-radius: 1px; overflow: hidden; }
+.session-fill  { height: 100%; background: var(--accent); transition: width 1s linear; }
+
+/* ZONE MAP */
+.zone-map { background: #060606; border: 1px solid var(--border2);
+            border-radius: var(--r); height: 120px; overflow: hidden; }
+.zone-map svg { width: 100%; height: 100%; }
+
+/* ALERTS */
+.alert-item { display: flex; gap: 8px; align-items: flex-start; padding: 7px 8px;
+              border-radius: var(--r); margin-bottom: 5px;
+              background: rgba(192,57,43,0.06); border: 1px solid rgba(192,57,43,0.2);
+              font-family: var(--mono); font-size: 9px; animation: fadeIn 0.15s ease; }
+.alert-lev { font-weight: 600; padding: 1px 5px; border-radius: 1px; font-size: 8px;
+             flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 1px; }
+.alert-lev.high { background: rgba(192,57,43,0.25); color: var(--red); }
+.alert-lev.med  { background: rgba(212,160,23,0.2);  color: var(--accent); }
+.alert-lev.low  { background: rgba(41,128,185,0.2);  color: var(--blue); }
+.alert-x { margin-left: auto; background: none; border: none; color: var(--text-faint);
+           cursor: pointer; font-size: 10px; padding: 0; flex-shrink: 0; }
+.alert-x:hover { color: var(--text); }
+
+/* MODAL */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100;
+                 display: flex; align-items: center; justify-content: center;
+                 opacity: 0; pointer-events: none; transition: opacity 0.15s; }
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--r);
+         padding: 24px; width: 360px; transform: translateY(-8px); transition: transform 0.15s; }
+.modal-overlay.open .modal { transform: translateY(0); }
+.modal-title { font-family: var(--mono); font-size: 12px; font-weight: 600;
+               text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent);
+               margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.modal-label { font-family: var(--mono); font-size: 9px; text-transform: uppercase;
+               letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 5px; margin-top: 10px; }
+.modal-input { width: 100%; background: #080808; border: 1px solid var(--border2);
+               border-radius: var(--r); padding: 8px 10px; color: var(--text);
+               font-family: var(--mono); font-size: 12px; outline: none; transition: border-color 0.1s; }
+.modal-input:focus { border-color: var(--accent); }
+.modal-err { font-family: var(--mono); font-size: 9px; color: var(--red); height: 14px; margin-top: 6px; }
+.modal-btns { display: flex; gap: 8px; margin-top: 12px; }
+.modal-btns .btn { margin: 0; flex: 1; text-align: center; }
+.user-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 5px; margin-bottom: 14px; }
+.user-chip { padding: 6px 8px; border: 1px solid var(--border2); border-radius: var(--r);
+             font-family: var(--mono); font-size: 9px; cursor: pointer; text-align: center;
+             transition: background 0.1s, border-color 0.1s; }
+.user-chip:hover { background: rgba(255,255,255,0.05); border-color: var(--accent-dim); }
+.chip-name  { color: var(--text); font-weight: 500; }
+.chip-level { color: var(--text-faint); font-size: 8px; margin-top: 2px; }
+
+/* TABS */
+.tabs { display: flex; border-bottom: 1px solid var(--border); }
+.tab  { padding: 7px 14px; font-family: var(--mono); font-size: 9px; text-transform: uppercase;
+        letter-spacing: 0.1em; color: var(--text-faint); cursor: pointer;
+        border-bottom: 2px solid transparent; transition: color 0.1s, border-color 0.1s; }
+.tab:hover  { color: var(--text-dim); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-pane { display: none; padding: 12px 14px; }
+.tab-pane.active { display: block; }
+
+/* CONFIG */
+.cfg-row { display: flex; align-items: center; justify-content: space-between;
+           padding: 7px 0; border-bottom: 1px solid rgba(42,42,42,0.6);
+           font-family: var(--mono); font-size: 10px; color: var(--text-dim); }
+.cfg-row:last-child { border-bottom: none; }
+.toggle { width: 28px; height: 14px; background: var(--border2); border-radius: 7px;
+          position: relative; cursor: pointer; transition: background 0.15s; }
+.toggle.on { background: var(--accent); }
+.toggle::after { content: ''; position: absolute; width: 10px; height: 10px; background: white;
+                 border-radius: 50%; top: 2px; left: 2px; transition: left 0.15s; }
+.toggle.on::after { left: 16px; }
+
+/* TOAST */
+.toast { position: fixed; bottom: 20px; right: 20px; background: var(--surface);
+         border: 1px solid var(--green); border-radius: var(--r); padding: 10px 16px;
+         font-family: var(--mono); font-size: 10px; color: var(--green); z-index: 200;
+         opacity: 0; transform: translateY(6px); transition: all 0.2s; }
+.toast.show { opacity: 1; transform: translateY(0); }
+
+@media (max-width: 1024px) {
+  .main-grid  { grid-template-columns: 1fr; }
+  .stats-row  { grid-template-columns: repeat(3,1fr); }
+}
+@media (max-width: 640px) {
+  .stats-row  { grid-template-columns: repeat(2,1fr); }
+  .telem-grid { grid-template-columns: repeat(2,1fr); }
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div>
+      <div class="logo-name">Perimeter<span>IQ</span></div>
+      <div class="logo-sub">DSC Blueprints 2026 &nbsp;|&nbsp; SVCE &nbsp;|&nbsp; Gate Alpha</div>
+    </div>
+    <div class="status-row">
+      <div class="status-dot" id="s-dot"></div>
+      <div class="status-text" id="s-text">System armed — standing by</div>
+    </div>
+    <div class="threat-badge t-none" id="t-badge">Threat: None</div>
+    <div class="sys-clock" id="clock">--:--:--</div>
+  </div>
+
+  <!-- STATS ROW -->
+  <div class="stats-row">
+    <div class="stat-cell">
+      <div class="label">Total Events</div>
+      <div class="stat-val" id="st-total">0</div>
+    </div>
+    <div class="stat-cell">
+      <div class="label">L to R</div>
+      <div class="stat-val" id="st-lr">0</div>
+    </div>
+    <div class="stat-cell">
+      <div class="label">R to L</div>
+      <div class="stat-val" id="st-rl">0</div>
+    </div>
+    <div class="stat-cell">
+      <div class="label">Breaches</div>
+      <div class="stat-val red" id="st-breach">0</div>
+    </div>
+    <div class="stat-cell">
+      <div class="label">Pkts Dropped</div>
+      <div class="stat-val amber" id="st-drop">0</div>
+    </div>
+    <div class="stat-cell">
+      <div class="label">Uptime</div>
+      <div class="stat-val green mono" id="st-up">00:00:00</div>
+    </div>
+  </div>
+
+  <div class="main-grid">
+    <!-- LEFT COLUMN -->
+    <div class="left-col">
+
+      <!-- BEAM TRACK -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Live Spatial Telemetry</span>
+          <span class="label" id="live-label">Live</span>
+        </div>
+        <div style="padding:14px">
+          <div class="zone-labels">
+            <span>Exterior</span><span>Beam A</span>
+            <span>Detection Zone</span>
+            <span>Beam B</span><span>Interior</span>
+          </div>
+          <div class="beam-track" id="beam-track">
+            <div class="laser-beam clear" id="beam-a" style="left:28%">
+              <span class="beam-lbl">A</span>
+            </div>
+            <div class="laser-beam clear" id="beam-b" style="left:72%">
+              <span class="beam-lbl">B</span>
+            </div>
+            <div class="intruder" id="intruder" style="left:-20px"></div>
+          </div>
+          <div class="sensor-bars">
+            <div>
+              <div class="bar-label">
+                <span class="label">Sensor A</span>
+                <span class="mono" id="va-txt" style="font-size:9px;color:var(--text-dim)">-- mV</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" id="bar-a" style="width:10%"></div></div>
+            </div>
+            <div>
+              <div class="bar-label">
+                <span class="label">Sensor B</span>
+                <span class="mono" id="vb-txt" style="font-size:9px;color:var(--text-dim)">-- mV</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" id="bar-b" style="width:10%"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TELEMETRY -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Sensor Telemetry</span>
+          <span class="label" id="seq-lbl">Seq: --</span>
+        </div>
+        <div class="panel-body">
+          <div class="telem-grid">
+            <div class="telem-cell">
+              <div class="label">Sensor A</div>
+              <div class="telem-val" id="val-a">--</div>
+              <div class="telem-unit">ADC raw</div>
+            </div>
+            <div class="telem-cell">
+              <div class="label">Sensor B</div>
+              <div class="telem-val" id="val-b">--</div>
+              <div class="telem-unit">ADC raw</div>
+            </div>
+            <div class="telem-cell">
+              <div class="label">Velocity</div>
+              <div class="telem-val" id="val-v">0.00</div>
+              <div class="telem-unit">m / s</div>
+            </div>
+            <div class="telem-cell">
+              <div class="label">Object Class</div>
+              <div class="telem-val" id="val-cls" style="font-size:11px;color:var(--text-dim)">--</div>
+              <div class="telem-unit">Classification</div>
+            </div>
+          </div>
+          <canvas class="waveform" id="waveform"></canvas>
+        </div>
+      </div>
+
+      <!-- TABBED -->
+      <div class="panel">
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab('pkts',this)">Packet Stream</div>
+          <div class="tab" onclick="switchTab('alerts',this)">Alerts <span id="alert-badge" style="color:var(--red)"></span></div>
+          <div class="tab" onclick="switchTab('log',this)">Event Log</div>
+        </div>
+        <div id="tab-pkts" class="tab-pane active">
+          <div class="pkt-stream" id="pkt-stream">
+            <div class="pkt-row">
+              <span class="pkt-seq">--</span>
+              <span class="pkt-bytes">Waiting for hardware connection</span>
+              <span class="pkt-evt"></span>
+            </div>
+          </div>
+        </div>
+        <div id="tab-alerts" class="tab-pane">
+          <div id="alerts-list">
+            <div style="font-family:var(--mono);font-size:10px;color:var(--text-faint);padding:8px 0">No active alerts</div>
+          </div>
+        </div>
+        <div id="tab-log" class="tab-pane">
+          <div class="log-scroll" id="sys-log"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT SIDEBAR -->
+    <div class="right-col">
+
+      <!-- AUTH -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Security Access</span>
+          <span class="label" id="auth-lbl">Unauthenticated</span>
+        </div>
+        <div class="panel-body">
+          <button class="btn primary" id="btn-auth" onclick="openAuth()">Scan NFC Credential</button>
+          <button class="btn danger"  id="btn-lock" onclick="toggleLock()">Emergency Lockdown</button>
+          <button class="btn"                        onclick="resetAlerts()">Reset Alerts</button>
+          <div class="session-wrap" id="sess-wrap">
+            <div class="session-info">
+              <span>Session expires</span>
+              <span id="sess-cd">10s</span>
+            </div>
+            <div class="session-track">
+              <div class="session-fill" id="sess-bar" style="width:100%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ZONE MAP -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Zone Map</span>
+          <span class="label">Gate Alpha</span>
+        </div>
+        <div style="padding:10px">
+          <div class="zone-map">
+            <svg viewBox="0 0 280 120" xmlns="http://www.w3.org/2000/svg">
+              <rect x="4" y="4" width="272" height="112" fill="none" stroke="#1e1e1e" stroke-width="1"/>
+              <rect x="75" y="15" width="130" height="90" fill="#0a0a0a" stroke="#222" stroke-width="1"/>
+              <text x="16" y="65" fill="#2a2a2a" font-size="7" font-family="monospace"
+                    text-anchor="middle" transform="rotate(-90,16,65)">EXTERIOR</text>
+              <text x="264" y="65" fill="#2a2a2a" font-size="7" font-family="monospace"
+                    text-anchor="middle" transform="rotate(90,264,65)">INTERIOR</text>
+              <line x1="125" y1="15" x2="125" y2="105" stroke="rgba(212,160,23,0.25)"
+                    stroke-width="1" stroke-dasharray="3,4" id="map-ba"/>
+              <line x1="155" y1="15" x2="155" y2="105" stroke="rgba(212,160,23,0.25)"
+                    stroke-width="1" stroke-dasharray="3,4" id="map-bb"/>
+              <text x="90" y="12" fill="#2a2a2a" font-size="7" font-family="monospace">DETECTION ZONE</text>
+              <circle id="map-dot" cx="-10" cy="60" r="4" fill="var(--text-dim)" opacity="0.7"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONFIG -->
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">System Config</span></div>
+        <div class="panel-body">
+          <div class="cfg-row">
+            <span>Auto Alarm</span>
+            <div class="toggle on" id="tog-alarm" onclick="toggleCfg('alarm')"></div>
+          </div>
+          <div class="cfg-row">
+            <span>Packet Log</span>
+            <div class="toggle on" id="tog-pkts" onclick="toggleCfg('pkts')"></div>
+          </div>
+          <div class="cfg-row">
+            <span>Waveform</span>
+            <div class="toggle on" id="tog-wave" onclick="toggleCfg('wave')"></div>
+          </div>
+          <div class="cfg-row">
+            <span>Export Log</span>
+            <button class="btn" style="width:auto;padding:3px 10px;font-size:9px;margin:0"
+                    onclick="exportLog()">Export CSV</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SIMULATIONS -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Simulations</span>
+          <span class="label">Offline</span>
+        </div>
+        <div class="panel-body">
+          <button class="btn" id="sim-lr"      onclick="runSim('LR')">L to R Crossing</button>
+          <button class="btn" id="sim-rl"      onclick="runSim('RL')">R to L Crossing</button>
+          <button class="btn" id="sim-stall"   onclick="runSim('STALL')">Static Obstruction</button>
+          <button class="btn" id="sim-retreat" onclick="runSim('RETREAT')">Retreat</button>
+          <button class="btn" id="sim-rush"    onclick="runSim('RUSH')">Rapid Breach</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div class="modal-overlay" id="auth-modal">
+  <div class="modal">
+    <div class="modal-title">NFC Credential Verification</div>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);margin-bottom:12px">
+      Select a registered user or enter badge ID manually.
+    </div>
+    <div class="user-grid">
+      <div class="user-chip" onclick="pickUser('0xDE44')">
+        <div class="chip-name">Ayman</div><div class="chip-level">Admin</div>
+      </div>
+      <div class="user-chip" onclick="pickUser('OP001')">
+        <div class="chip-name">Operator 001</div><div class="chip-level">Operator</div>
+      </div>
+      <div class="user-chip" onclick="pickUser('ADMIN')">
+        <div class="chip-name">Admin</div><div class="chip-level">Admin</div>
+      </div>
+      <div class="user-chip" onclick="pickUser('GUEST')">
+        <div class="chip-name">Guest</div><div class="chip-level">Guest</div>
+      </div>
+    </div>
+    <div class="modal-label">Badge ID</div>
+    <input class="modal-input" type="text" id="m-id" placeholder="0xDE44 or ADMIN...">
+    <div class="modal-label">PIN</div>
+    <input class="modal-input" type="password" id="m-pin" placeholder="Enter PIN">
+    <div class="modal-err" id="m-err"></div>
+    <div class="modal-btns">
+      <button class="btn primary" onclick="submitAuth()">Authenticate</button>
+      <button class="btn"         onclick="closeAuth()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════ STATE
+const S = {
+  isAuthed:  false,
+  isLock:    false,
+  busy:      false,
+  authTimer: null,
+  uptime:    0,
+  breaches:  0,
+  logs:      [],
+  alerts:    [],
+  alertId:   0,
+  wave:      new Array(200).fill(0.5),
+  cfg: { alarm: true, pkts: true, wave: true },
+};
+window.pendingAuth = null;
+window.ackTimer    = null;
+
+// ══════════════════════════════════════════════════ CLOCK
+setInterval(() => {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('en-GB',{hour12:false});
+  S.uptime++;
+  const h = String(Math.floor(S.uptime/3600)).padStart(2,'0');
+  const m = String(Math.floor((S.uptime%3600)/60)).padStart(2,'0');
+  const s = String(S.uptime%60).padStart(2,'0');
+  document.getElementById('st-up').textContent = `${h}:${m}:${s}`;
+}, 1000);
+
+// ══════════════════════════════════════════════════ LOG
+function addLog(msg, src, type) {
+  const ts = new Date().toLocaleTimeString('en-GB',{hour12:false});
+  const el = document.createElement('div');
+  el.className = `log-row ${type}`;
+  el.innerHTML =
+    `<span class="log-ts">${ts}</span>` +
+    `<span class="log-src">[${src}]</span>` +
+    `<span class="log-msg">${msg}</span>`;
+  const c = document.getElementById('sys-log');
+  c.prepend(el);
+  if (c.children.length > 120) c.lastChild.remove();
+  S.logs.unshift({ts,src,msg,type});
+  if (S.logs.length > 300) S.logs.pop();
+}
+
+// ══════════════════════════════════════════════════ STATUS
+function setStatus(mode, txt) {
+  const dot   = document.getElementById('s-dot');
+  const text  = document.getElementById('s-text');
+  const badge = document.getElementById('t-badge');
+  dot.className   = 'status-dot';
+  badge.className = 'threat-badge';
+  if (mode === 'secure') {
+    text.textContent  = txt || 'System armed — standing by';
+    badge.classList.add('t-none');
+    badge.textContent = 'Threat: None';
+  } else if (mode === 'alarm') {
+    dot.classList.add('alarm');
+    text.textContent  = txt || 'Breach detected';
+    badge.classList.add('t-elevated');
+    badge.textContent = 'Threat: Elevated';
+  } else if (mode === 'critical') {
+    dot.classList.add('alarm');
+    text.textContent  = txt || 'Critical breach';
+    badge.classList.add('t-critical');
+    badge.textContent = 'Threat: Critical';
+  } else if (mode === 'authed') {
+    dot.classList.add('authed');
+    text.textContent  = txt || 'Authorized session active';
+    badge.classList.add('t-none');
+    badge.textContent = 'Authorized';
+  } else if (mode === 'lockdown') {
+    dot.classList.add('alarm');
+    text.textContent  = 'Lockdown active';
+    badge.classList.add('t-lockdown');
+    badge.textContent = 'Lockdown';
+  }
+}
+
+function resetStatus() {
+  if (S.isLock) return;
+  setStatus(S.isAuthed ? 'authed' : 'secure');
+  setBeam('a', false);
+  setBeam('b', false);
+  document.getElementById('intruder').style.left = '-20px';
+  document.getElementById('val-v').className = 'telem-val';
+}
+
+// ══════════════════════════════════════════════════ BEAMS
+function setBeam(id, tripped) {
+  const el  = document.getElementById(`beam-${id}`);
+  const bar = document.getElementById(`bar-${id}`);
+  const vt  = document.getElementById(`v${id}-txt`);
+  const va  = document.getElementById(`val-${id}`);
+  el.className = `laser-beam ${tripped ? 'tripped' : 'clear'}`;
+  if (tripped) {
+    bar.classList.add('tripped');
+    bar.style.width = '100%';
+    vt.textContent  = '0 mV';
+    va.textContent  = '0';
+    va.className    = 'telem-val alert';
+  } else {
+    bar.classList.remove('tripped');
+    const v = 400 + Math.floor(Math.random()*80);
+    bar.style.width = `${Math.min(v/40,100)}%`;
+    vt.textContent  = `${v} mV`;
+    if (va.textContent === '0') {
+      va.textContent = v;
+      va.className   = 'telem-val';
+    }
+  }
+  document.getElementById(`map-b${id}`).setAttribute(
+    'stroke', tripped ? 'rgba(192,57,43,0.6)' : 'rgba(212,160,23,0.25)'
+  );
+}
+
+// ══════════════════════════════════════════════════ AUTH
+function openAuth() {
+  document.getElementById('auth-modal').classList.add('open');
+  document.getElementById('m-id').value  = '';
+  document.getElementById('m-pin').value = '';
+  document.getElementById('m-err').textContent = '';
+}
+function closeAuth() { document.getElementById('auth-modal').classList.remove('open'); }
+
+function pickUser(id) {
+  document.getElementById('m-id').value = id;
+  document.getElementById('m-pin').focus();
+}
+
+const PINS = {'0xDE44':'1234','ADMIN':'0000','OP001':'1111','GUEST':'9999'};
+
+function submitAuth() {
+  const id  = document.getElementById('m-id').value.trim();
+  const pin = document.getElementById('m-pin').value;
+  if (!id) { document.getElementById('m-err').textContent = 'Badge ID required'; return; }
+  if (pin && PINS[id] && PINS[id] !== pin) {
+    document.getElementById('m-err').textContent = 'Invalid PIN';
+    addLog(`Auth failed: invalid PIN for ${id}`, 'AUTH', 'warn');
+    return;
+  }
+  closeAuth();
+  if (window.ws && window.ws.readyState === 1) {
+    window.pendingAuth = id;
+    window.ws.send(JSON.stringify({cmd:'AUTH', user:id}));
+    addLog(`Auth command sent — awaiting ACK for ${id}`, 'AUTH', 'info');
+    window.ackTimer = setTimeout(() => {
+      if (window.pendingAuth) {
+        addLog(`Auth ACK timeout — activating locally for ${id}`, 'AUTH', 'warn');
+        activateAuth(id, 'OPERATOR');
+        window.pendingAuth = null;
+      }
+    }, 2000);
+  } else {
+    addLog(`Auth: no WebSocket — local session for ${id}`, 'AUTH', 'warn');
+    activateAuth(id, 'OPERATOR');
+  }
+}
+
+function activateAuth(userId, level) {
+  S.isAuthed = true;
+  setStatus('authed', `Authorized — ${userId}`);
+  document.getElementById('auth-lbl').textContent   = `${userId} (${level||'OP'})`;
+  document.getElementById('btn-auth').textContent   = 'Session Active';
+  document.getElementById('btn-auth').disabled      = true;
+  document.getElementById('sess-wrap').style.display = 'block';
+  addLog(`Session opened: ${userId} (${level||'OPERATOR'})`, 'AUTH', 'success');
+  let rem = 10;
+  document.getElementById('sess-cd').textContent  = `${rem}s`;
+  document.getElementById('sess-bar').style.width = '100%';
+  if (S.authTimer) clearInterval(S.authTimer);
+  S.authTimer = setInterval(() => {
+    rem--;
+    document.getElementById('sess-cd').textContent  = `${rem}s`;
+    document.getElementById('sess-bar').style.width = `${(rem/10)*100}%`;
+    if (rem <= 0) { clearInterval(S.authTimer); deactivateAuth(userId); }
+  }, 1000);
+}
+
+function deactivateAuth(userId) {
+  S.isAuthed = false;
+  document.getElementById('auth-lbl').textContent    = 'Unauthenticated';
+  document.getElementById('sess-wrap').style.display = 'none';
+  document.getElementById('btn-auth').textContent    = 'Scan NFC Credential';
+  document.getElementById('btn-auth').disabled       = false;
+  addLog(`Session expired: ${userId}`, 'AUTH', 'warn');
+  if (!S.isLock) resetStatus();
+}
+
+// ══════════════════════════════════════════════════ LOCKDOWN
+function toggleLock() {
+  S.isLock = !S.isLock;
+  if (S.isLock) {
+    document.getElementById('btn-lock').textContent = 'Release Lockdown';
+    document.getElementById('btn-lock').className  = 'btn armed';
+    setStatus('lockdown');
+    addLog('Emergency lockdown activated', 'SYS', 'critical');
+    addAlert('Emergency lockdown — operator activated', 'high');
+  } else {
+    document.getElementById('btn-lock').textContent = 'Emergency Lockdown';
+    document.getElementById('btn-lock').className  = 'btn danger';
+    addLog('Lockdown released', 'SYS', 'warn');
+    resetStatus();
+  }
+}
+
+// ══════════════════════════════════════════════════ ALERTS
+function addAlert(msg, sev) {
+  S.alertId++;
+  const ts = new Date().toLocaleTimeString('en-GB',{hour12:false});
+  S.alerts.unshift({id:S.alertId, msg, sev, ts});
+  renderAlerts();
+}
+function dismissAlert(id) { S.alerts = S.alerts.filter(a => a.id !== id); renderAlerts(); }
+function renderAlerts() {
+  const list  = document.getElementById('alerts-list');
+  const badge = document.getElementById('alert-badge');
+  badge.textContent = S.alerts.length ? `[${S.alerts.length}]` : '';
+  if (!S.alerts.length) {
+    list.innerHTML = '<div style="font-family:var(--mono);font-size:10px;color:var(--text-faint);padding:8px 0">No active alerts</div>';
+    return;
+  }
+  list.innerHTML = S.alerts.map(a =>
+    `<div class="alert-item">
+      <span class="alert-lev ${a.sev}">${a.sev}</span>
+      <span style="flex:1;color:var(--text-dim)">[${a.ts}] ${a.msg}</span>
+      <button class="alert-x" onclick="dismissAlert(${a.id})">x</button>
+    </div>`
+  ).join('');
+}
+function resetAlerts() { S.alerts = []; renderAlerts(); addLog('Alerts cleared', 'SYS', 'success'); resetStatus(); }
+
+// ══════════════════════════════════════════════════ ALARM
+function triggerAlarm(msg, critical) {
+  S.breaches++;
+  document.getElementById('st-breach').textContent = S.breaches;
+  addLog(`Alarm: ${msg}`, 'ALERT', 'critical');
+  setStatus(critical ? 'critical' : 'alarm', `${critical ? 'Critical breach' : 'Breach detected'} — ${msg}`);
+  if (!critical) setTimeout(resetStatus, 5000);
+}
+
+// ══════════════════════════════════════════════════ ANIMATION
+function sleep(ms) { return new Promise(r => setTimeout(r,ms)); }
+function moveIntruder(from, to, ms) {
+  const el  = document.getElementById('intruder');
+  const dot = document.getElementById('map-dot');
+  el.style.left = from;
+  const mx = p => p==='-20px'?-10 : p==='110%'?290 : parseFloat(p)*2.8;
+  dot.setAttribute('cx', mx(from));
+  return new Promise(res => {
+    setTimeout(() => {
+      el.style.transition = `left ${ms}ms linear`;
+      el.style.left = to;
+      dot.setAttribute('cx', mx(to));
+      setTimeout(() => { el.style.transition = ''; res(); }, ms);
+    }, 10);
+  });
+}
+
+// ══════════════════════════════════════════════════ TABS
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(`tab-${name}`).classList.add('active');
+}
+
+// ══════════════════════════════════════════════════ CONFIG
+function toggleCfg(key) {
+  S.cfg[key] = !S.cfg[key];
+  const tog = document.getElementById(`tog-${key}`);
+  S.cfg[key] ? tog.classList.add('on') : tog.classList.remove('on');
+}
+
+// ══════════════════════════════════════════════════ EXPORT
+function exportLog() {
+  const csv = ['timestamp,source,message,type',
+    ...S.logs.map(e => `"${e.ts}","${e.src}","${e.msg}","${e.type}"`)
+  ].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download = 'perimeteriq_log.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('Log exported');
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ══════════════════════════════════════════════════ SIMULATIONS
+function setSims(d) {
+  ['lr','rl','stall','retreat','rush'].forEach(id => {
+    document.getElementById(`sim-${id}`).disabled = d;
+  });
+}
+async function runSim(type) {
+  if (S.busy || S.isLock) return;
+  S.busy = true; setSims(true);
+  addLog(`Simulation: ${type}`, 'SIM', 'info');
+  const fast = (type === 'RUSH');
+  const dur  = fast ? 90 : 300;
+  const el   = document.getElementById('intruder');
+  el.className = 'intruder' + (fast ? ' alert' : '');
+
+  if (type === 'LR') {
+    await moveIntruder('-20px','28%',dur); setBeam('a',true);
+    await sleep(200);
+    await moveIntruder('28%','72%',dur); setBeam('a',false); setBeam('b',true);
+    document.getElementById('val-v').textContent = (Math.random()*1.2+0.4).toFixed(2);
+    await sleep(200);
+    await moveIntruder('72%','110%',dur); setBeam('b',false);
+    if (!S.isAuthed && S.cfg.alarm) { triggerAlarm('L to R traversal', false); addAlert('Inbound entry at Gate Alpha', 'high'); }
+    else if (S.isAuthed) addLog('Authorised entry — L to R', 'AUTH', 'success');
+
+  } else if (type === 'RL') {
+    await moveIntruder('110%','72%',dur); setBeam('b',true);
+    await sleep(200);
+    await moveIntruder('72%','28%',dur); setBeam('b',false); setBeam('a',true);
+    document.getElementById('val-v').textContent = (Math.random()*1.2+0.4).toFixed(2);
+    await sleep(200);
+    await moveIntruder('28%','-20px',dur); setBeam('a',false);
+    if (!S.isAuthed && S.cfg.alarm) { triggerAlarm('R to L traversal', false); addAlert('Exit detected at Gate Alpha', 'med'); }
+    else if (S.isAuthed) addLog('Authorised exit — R to L', 'AUTH', 'success');
+
+  } else if (type === 'STALL') {
+    await moveIntruder('-20px','50%',500); setBeam('a',true); setBeam('b',true);
+    if (!S.isAuthed && S.cfg.alarm) { triggerAlarm('Stationary object', true); addAlert('Both beams blocked', 'high'); }
+    await sleep(2500);
+    await moveIntruder('50%','110%',500); setBeam('a',false); setBeam('b',false);
+    if (!S.isAuthed) setTimeout(resetStatus, 3000);
+
+  } else if (type === 'RETREAT') {
+    await moveIntruder('-20px','28%',400); setBeam('a',true);
+    await sleep(300);
+    await moveIntruder('28%','-20px',400); setBeam('a',false);
+    addLog('Beam A — retreat (double break)', 'SENSOR', 'warn');
+    if (S.cfg.alarm) { triggerAlarm('Retreat detected', false); addAlert('Retreat at Gate Alpha', 'med'); }
+
+  } else if (type === 'RUSH') {
+    await moveIntruder('-20px','28%',70); setBeam('a',true);
+    await sleep(30);
+    await moveIntruder('28%','72%',70); setBeam('a',false); setBeam('b',true);
+    document.getElementById('val-v').textContent = (Math.random()*3+3).toFixed(2);
+    await sleep(30);
+    await moveIntruder('72%','110%',70); setBeam('b',false);
+    if (!S.isAuthed && S.cfg.alarm) { triggerAlarm('High velocity breach', true); addAlert('Rapid breach — velocity exceeds threshold', 'high'); }
+  }
+
+  addLog(`Simulation end: ${type}`, 'SIM', 'info');
+  S.busy = false; setSims(false);
+}
+
+// ══════════════════════════════════════════════════ WAVEFORM
+const wC = document.getElementById('waveform');
+const wX = wC.getContext('2d');
+function resizeW() { wC.width = wC.offsetWidth; wC.height = wC.offsetHeight; }
+resizeW(); window.addEventListener('resize', resizeW);
+setInterval(() => {
+  if (!S.cfg.wave) return;
+  const w = wC.offsetWidth, h = wC.offsetHeight;
+  const alarmed = document.getElementById('beam-a').classList.contains('tripped') ||
+                  document.getElementById('beam-b').classList.contains('tripped');
+  S.wave.push(Math.max(0.05, Math.min(0.95,
+    0.5 + (Math.random()-0.5) * (alarmed ? 0.6 : 0.15))));
+  if (S.wave.length > 200) S.wave.shift();
+  wX.clearRect(0,0,w,h);
+  wX.beginPath();
+  wX.strokeStyle = alarmed ? 'rgba(192,57,43,0.8)' : 'rgba(212,160,23,0.6)';
+  wX.lineWidth = 1;
+  const step = w / (S.wave.length-1);
+  S.wave.forEach((v,i) => {
+    const x = i*step, y = h-v*h;
+    i===0 ? wX.moveTo(x,y) : wX.lineTo(x,y);
+  });
+  wX.stroke();
+  wX.beginPath(); wX.strokeStyle = 'rgba(255,255,255,0.04)';
+  wX.moveTo(0,h*0.5); wX.lineTo(w,h*0.5); wX.stroke();
+}, 80);
+
+// ══════════════════════════════════════════════════ SYNTHETIC IDLE NOISE
+// Only runs when WebSocket is not providing live data
+setInterval(() => {
+  if (window.ws && window.ws.readyState === 1 &&
+      Date.now() - window.lastHB < 8000) return;
+  ['a','b'].forEach(id => {
+    const va = document.getElementById(`val-${id}`);
+    if (va.className === 'telem-val') {
+      const v = 380 + Math.floor(Math.random()*100);
+      va.textContent = v;
+      document.getElementById(`v${id}-txt`).textContent = `${v} mV`;
+      document.getElementById(`bar-${id}`).style.width = `${Math.min(v/40,100)}%`;
+    }
+  });
+}, 1500);
+
+// ══════════════════════════════════════════════════ KEYBOARD
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key==='1') runSim('LR');
+  if (e.key==='2') runSim('RL');
+  if (e.key==='3') runSim('STALL');
+  if (e.key==='4') runSim('RETREAT');
+  if (e.key==='5') runSim('RUSH');
+  if (e.key==='a'||e.key==='A') openAuth();
+  if (e.key==='Escape') closeAuth();
+});
+
+// ══════════════════════════════════════════════════ OBJECT CLASS
+const CLS = {
+  'HUMAN_SLOW':  {label:'Human / Slow',      color:'var(--accent)'},
+  'HUMAN_WALK':  {label:'Human / Walk',      color:'var(--accent)'},
+  'HUMAN_RUN':   {label:'Human / Run',       color:'var(--red)'},
+  'MECHANICAL':  {label:'Non-Human / Mech',  color:'#8b5cf6'},
+  'UNKNOWN':     {label:'--',                color:'var(--text-dim)'},
+};
+
+// ══════════════════════════════════════════════════ WEBSOCKET
+window.ws    = null;
+window.lastHB = 0;
+
+function connectWS() {
+  window.ws = new WebSocket(`ws://${window.location.host}/ws`);
+
+  window.ws.onopen = () => {
+    addLog('WebSocket connected — hardware node online', 'SYS', 'success');
+    document.getElementById('live-label').textContent = 'Live';
+  };
+
+  window.ws.onmessage = (evt) => {
+    let d;
+    try { d = JSON.parse(evt.data); } catch { return; }
+
+    // Always update raw sensor values and seq
+    if (d.raw_a !== undefined) {
+      document.getElementById('val-a').textContent  = d.raw_a;
+      document.getElementById('va-txt').textContent = `${d.raw_a} mV`;
+      document.getElementById('bar-a').style.width  = `${(d.raw_a/4095)*100}%`;
+    }
+    if (d.raw_b !== undefined) {
+      document.getElementById('val-b').textContent  = d.raw_b;
+      document.getElementById('vb-txt').textContent = `${d.raw_b} mV`;
+      document.getElementById('bar-b').style.width  = `${(d.raw_b/4095)*100}%`;
+    }
+    if (d.velocity  !== undefined) document.getElementById('val-v').textContent   = d.velocity.toFixed(2);
+    if (d.seq       !== undefined) document.getElementById('seq-lbl').textContent = `Seq: ${d.seq}`;
+    if (d.dropped   !== undefined) document.getElementById('st-drop').textContent  = d.dropped;
+
+    // Packet stream display
+    if (d.seq !== undefined && S.cfg.pkts) {
+      const ps     = document.getElementById('pkt-stream');
+      const alarm  = d.threat === 'CRITICAL' || d.threat === 'ELEVATED';
+      const row    = document.createElement('div');
+      row.className = `pkt-row${alarm?' alert':d.is_authed?' authed':''}`;
+      const sh = n => n.toString(16).toUpperCase().padStart(4,'0');
+      const seqH = sh(d.seq);
+      const aH   = sh(d.raw_a||0);
+      const bH   = sh(d.raw_b||0);
+      row.innerHTML =
+        `<span class="pkt-seq">SEQ:${seqH}</span>` +
+        `<span class="pkt-bytes">AA BB ${seqH.slice(0,2)} ${seqH.slice(2)} ` +
+        `<span class="hl">${(d.event||'').padEnd(6).slice(0,6)}</span> ` +
+        `${aH.slice(0,2)} ${aH.slice(2)}</span>` +
+        `<span class="pkt-evt">${d.event||''}</span>`;
+      ps.prepend(row);
+      if (ps.children.length > 8) ps.lastChild.remove();
+    }
+
+    // AUTH ACK — dashboard only activates after backend confirms
+    if (d.event === 'AUTH_ACK') {
+      if (window.ackTimer) { clearTimeout(window.ackTimer); window.ackTimer = null; }
+      const uid   = window.pendingAuth || d.user || 'OPERATOR';
+      const level = d.level || 'OPERATOR';
+      window.pendingAuth = null;
+      const msg = d.serial_ok !== false
+        ? `Auth ACK: ESP32 confirmed bypass for ${uid}`
+        : `Auth ACK: backend OK — serial to ESP32 failed (physical still armed)`;
+      addLog(msg, 'AUTH', d.serial_ok !== false ? 'auth' : 'warn');
+      activateAuth(uid, level);
+      return;
+    }
+
+    if (d.event === 'HEARTBEAT') { window.lastHB = Date.now(); return; }
+    if (d.event === 'ARMED')     { addLog('ESP32 armed — perimeter standing by', 'HW', 'success'); return; }
+
+    // Beam break indicators
+    if (d.event === 'BREAK_A') { setBeam('a',true); addLog('Beam A interrupted', 'SENSOR', 'warn'); return; }
+    if (d.event === 'BREAK_B') { setBeam('b',true); addLog('Beam B interrupted', 'SENSOR', 'warn'); return; }
+
+    // Kinetic event table
+    const KINETIC = {
+      'L_TO_R':            {label:'L to R traversal',       dir:'lr',      crit:false},
+      'R_TO_L':            {label:'R to L traversal',       dir:'rl',      crit:false},
+      'STATIONARY':        {label:'Stationary object',      dir:'stall',   crit:true},
+      'INSIDE_A':          {label:'Object in A-zone',       dir:null,      crit:false},
+      'INSIDE_B':          {label:'Object in B-zone',       dir:null,      crit:false},
+      'INSIDE_FULL':       {label:'Object in full zone',    dir:'stall',   crit:true},
+      'RETREAT':           {label:'Retreat — double break', dir:'retreat', crit:false},
+      'STATIONARY_L_TO_R': {label:'Stationary exit L to R', dir:'lr',     crit:false},
+      'STATIONARY_R_TO_L': {label:'Stationary exit R to L', dir:'rl',     crit:false},
+      'TAMPER':            {label:'Tamper detected',        dir:'stall',   crit:true},
+    };
+
+    const k = KINETIC[d.event];
+    if (!k) return;
+
+    // Clear beam indicators on a confirmed kinetic event
+    setBeam('a', false);
+    setBeam('b', false);
+
+    const vel    = d.velocity   !== undefined ? d.velocity.toFixed(2) : '0.00';
+    const conf   = d.confidence !== undefined ? d.confidence : 0;
+    const oclass = d.object_class || 'UNKNOWN';
+    const cs     = CLS[oclass] || CLS['UNKNOWN'];
+
+    // Update object class cell
+    const clsEl = document.getElementById('val-cls');
+    clsEl.textContent = cs.label;
+    clsEl.style.color = cs.color;
+
+    const msg = `${k.label} — v=${vel}m/s  conf=${conf}%  [${cs.label}]`;
+
+    // Severity
+    let sev = 'med';
+    if (d.threat === 'CRITICAL' || oclass === 'MECHANICAL' || k.crit) sev = 'high';
+    if (d.threat === 'NONE' && !k.crit) sev = 'low';
+
+    // Count in stats
+    document.getElementById('st-total').textContent =
+      parseInt(document.getElementById('st-total').textContent) + 1;
+    if (d.event === 'L_TO_R')
+      document.getElementById('st-lr').textContent =
+        parseInt(document.getElementById('st-lr').textContent) + 1;
+    if (d.event === 'R_TO_L')
+      document.getElementById('st-rl').textContent =
+        parseInt(document.getElementById('st-rl').textContent) + 1;
+
+    if (!d.is_authed) {
+      const isCrit = sev === 'high';
+      addLog(msg, 'SENSOR', isCrit ? 'critical' : 'warn');
+      if (S.cfg.alarm) {
+        triggerAlarm(`${k.label} — ${cs.label}`, isCrit);
+        addAlert(msg, sev);
+      }
+    } else {
+      addLog(`Authorised bypass: ${msg}`, 'AUTH', 'success');
+    }
+
+    // Animation
+    const speed = d.velocity > 1.5 ? 90 : 300;
+    const iEl   = document.getElementById('intruder');
+    iEl.className = `intruder${sev === 'high' ? ' alert' : ''}`;
+    if      (k.dir === 'lr')
+      moveIntruder('-20px','28%',speed)
+        .then(() => moveIntruder('28%','72%',speed))
+        .then(() => moveIntruder('72%','110%',speed));
+    else if (k.dir === 'rl')
+      moveIntruder('110%','72%',speed)
+        .then(() => moveIntruder('72%','28%',speed))
+        .then(() => moveIntruder('28%','-20px',speed));
+    else if (k.dir === 'stall')
+      moveIntruder('-20px','50%',600);
+    else if (k.dir === 'retreat')
+      moveIntruder('28%','-20px',500);
+  };
+
+  window.ws.onclose = () => {
+    window.lastHB = 0;
+    document.getElementById('live-label').textContent = 'Reconnecting';
+    addLog('WebSocket disconnected — retrying in 3s', 'SYS', 'warn');
+    setTimeout(connectWS, 3000);
+  };
+
+  window.ws.onerror = () => addLog('WebSocket error', 'SYS', 'warn');
+}
+
+setTimeout(connectWS, 500);
+
+// ══════════════════════════════════════════════════ INIT
+addLog('System initialised — all sensors nominal', 'SYS', 'success');
+addLog('Binary packet engine active — CRC8 on', 'SYS', 'info');
+addLog('Ready — awaiting hardware events', 'SYS', 'success');
+</script>
+</body>
+</html>

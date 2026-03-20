@@ -1,0 +1,32 @@
+# ── Python ────────────────────────────────────────────────
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# ── Database ──────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Arduino / PlatformIO ──────────────────────────────────
+.pio/
+build/
+*.hex
+*.bin
+*.elf
+
+# ── OS / Editor ───────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+
