@@ -1,6 +1,6 @@
 # PerimeterIQ — Directional Intrusion Detection System
 
-> **DSC Blueprints 2026 · SVCE · Team PerimeterIQ**
+> **DSC Blueprints 2026 @ SVCE · SAEC · Team PerimeterIQ**
 
 A real-time, dual-beam laser perimeter security system built on the **ESP32** microcontroller with a **Python FastAPI** backend and a live web dashboard. The system classifies intruders by movement direction, velocity, and behaviour — and streams every event to a browser in milliseconds over WebSocket.
 
@@ -189,7 +189,7 @@ The banner will confirm the port, baud rate, and dashboard URL:
 ```
 ╔══════════════════════════════════════════════╗
 ║   PERIMETER IQ — PYTHON COMMAND CENTER      ║
-║   DSC Blueprints 2026 — SVCE                ║
+║   DSC Blueprints 2026 @ SVCE — SAEC         ║
 ╠══════════════════════════════════════════════╣
 ║   PORT      :  COM7                          ║
 ║   BAUD      :  115200                        ║
@@ -304,5 +304,5 @@ Every packet is **16 bytes**, always starting with `0xAA 0xBB`.
 
 ## License
 
-This project is developed for the **DSC Blueprints 2026** competition at SVCE.  
-© 2026 Team PerimeterIQ. All rights reserved.
+This project is developed by **SAEC Team PerimeterIQ** for the **DSC Blueprints 2026** competition at SVCE.  
+© 2026 SAEC Team PerimeterIQ. All rights reserved.

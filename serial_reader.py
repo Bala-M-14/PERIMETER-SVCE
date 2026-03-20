@@ -1,6 +1,6 @@
 """
 PerimeterIQ — Python Command Center
-DSC Blueprints 2026 — SVCE — Team PerimeterIQ
+DSC Blueprints 2026 @ SVCE — Team PerimeterIQ (SAEC)
 Version 23 — v21 base preserved, fixes applied:
   1. FastAPI lifespan replaces deprecated @app.on_event("startup")
      which caused loop_ref to never be set on newer FastAPI versions,
@@ -454,7 +454,7 @@ if __name__ == "__main__":
     print()
     print("╔══════════════════════════════════════════════╗")
     print("║   PERIMETER IQ — PYTHON COMMAND CENTER      ║")
-    print("║   DSC Blueprints 2026 — SVCE                ║")
+    print("║   DSC Blueprints 2026 @ SVCE — SAEC         ║")
     print("╠══════════════════════════════════════════════╣")
     print(f"║   PORT      :  {PORT:<30}║")
     print(f"║   BAUD      :  {BAUD:<30}║")

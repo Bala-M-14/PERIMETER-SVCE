@@ -1,6 +1,6 @@
 // ============================================================
 // PerimeterIQ — Directional Intrusion Detection System
-// DSC Blueprints 2026 — SVCE — Team PerimeterIQ
+// DSC Blueprints 2026 @ SVCE — Team PerimeterIQ (SAEC)
 // Version 23 — v21 core preserved, non-blocking buzzer,
 //              rearm_with_scan, anti-tailgate, retreat fix,
 //              tamper detection, velocity classification
